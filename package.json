@@ -10,7 +10,8 @@
     "node": ">=14.0.0 <19"
   },
   "scripts": {
-    "start": "tsc --build && pm2 start ecosystem.config.json --no-daemon",
+    "tsc": "./node_modules/typescript/bin/tsc",
+    "start": "pm2 start ecosystem.config.json --no-daemon",
     "start:build": "tsc --build && pm2 start ecosystem.config.json --no-daemon",
     "compile": "tsc --build",
     "compile:watch": "tsc --build --watch",
@@ -28,8 +29,7 @@
     "prettier:fix": "prettier --write **/*.ts",
     "docker:prod": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml up",
     "docker:dev": "docker-compose -f docker-compose.yml -f docker-compose.dev.yml up",
-    "docker:test": "docker-compose -f docker-compose.yml -f docker-compose.test.yml up",
-    "postinstall": "tsc",
+    "docker:test": "docker-compose -f docker-compose.yml -f docker-compose.test.yml up", 
     "release": "standard-version && git push --follow-tags origin master",
     "commit": "git add -A && cz"
   },
