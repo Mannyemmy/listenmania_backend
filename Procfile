@@ -1,1 +1,1 @@
-web: npm start:build
+web: yarn start
