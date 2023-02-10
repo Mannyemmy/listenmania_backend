@@ -29,7 +29,7 @@
     "docker:prod": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml up",
     "docker:dev": "docker-compose -f docker-compose.yml -f docker-compose.dev.yml up",
     "docker:test": "docker-compose -f docker-compose.yml -f docker-compose.test.yml up",
-    "prepare": "husky install",
+    "postinstall": "tsc",
     "release": "standard-version && git push --follow-tags origin master",
     "commit": "git add -A && cz"
   },
