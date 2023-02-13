@@ -90,7 +90,16 @@ export const getAllPost = catchAsync(async (req, res, next) => {
     sort: { posted_at: -1 },
   };
 
-  const fol_obj = req.user.following;
+
+
+   let fol_obj = [];
+  
+
+  if(req.user.following){
+    fol_obj = req.user.following;
+  }
+
+
 
   // const following = Array.from(fol_obj, ([key, value]) => new mongoose.Types.ObjectId(value.user));
 

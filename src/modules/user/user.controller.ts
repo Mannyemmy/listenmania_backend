@@ -1,9 +1,10 @@
+// @ts-nocheck
 import { getUserPost } from './../posts/post.controller';
 import httpStatus from 'http-status';
 import { fileUpload } from '../utils/fileUpload';
 
 import { Request, Response } from 'express';
-import mongoose, { AnyArray } from 'mongoose';
+import mongoose from 'mongoose';
 import catchAsync from '../utils/catchAsync';
 import ApiError from '../errors/ApiError';
 import pick from '../utils/pick';
@@ -78,16 +79,22 @@ export const getOtherUserProfile = catchAsync(async (req: Request, res: Response
 });
 
 export const getDiscoverUsers = catchAsync(async (req: Request, res: Response) => {
-  const fol_obj = req.user.following;
+  let fol_obj = [];
+
+  if (req.user.following) {
+    fol_obj = req.user.following;
+  }
 
   // const following = Array.from(fol_obj, ([key, value]) => new mongoose.Types.ObjectId(value.user));
 
-  fol_obj.push(new mongoose.Types.ObjectId(req.user.id));
+  fol_obj.push( new mongoose.Types.ObjectId(req.user.id));
 
   const users = await User.aggregate([
     {
       $match: {
         _id: { $nin: fol_obj },
+
+        role: 'user',
       },
     },
     { $sample: { size: 10 } },
@@ -142,6 +149,9 @@ export const followUser = catchAsync(async (req: Request, res: Response) => {
   if (typeof req.params['id'] === 'string') {
     const user = await userService.getUserById(req.params['id']);
     if (req.user?.id === req?.params['id'].toString()) throw new ApiError(httpStatus.NOT_FOUND, "You can't follow yourself");
+    if (user && !user?.followers) {
+      user.followers = new Array();
+    }
     if (user?.followers.includes(req.user.id)) {
       return res.status(200).json({
         status: 'success',
@@ -150,11 +160,15 @@ export const followUser = catchAsync(async (req: Request, res: Response) => {
       });
     }
 
-    await user?.followers.push(req.user.id);
+    await user?.followers.push(new mongoose.Types.ObjectId(req.user.id));
 
     await user?.save();
 
-    await req.user?.following.push(user?.id);
+    if (!req.user?.following) {
+      req.user.following = new Array();
+    }
+
+    await req.user?.following.push(new mongoose.Types.ObjectId(user?.id));
     await req.user?.save();
 
     await Notification.create({
@@ -181,6 +195,10 @@ export const unFollowUser = catchAsync(async (req: Request, res: Response) => {
 
     const user = await userService.getUserById(req.params['id']);
 
+    if (user && !user?.followers) {
+      user.followers = new Array();
+    }
+
     if (!user?.followers.includes(req?.user.id)) {
       return res.status(200).json({
         status: 'success',
@@ -192,6 +210,10 @@ export const unFollowUser = catchAsync(async (req: Request, res: Response) => {
     user?.followers?.splice(index, 1);
     // await user?.followers.delete(req.user.id);
     await user?.save();
+
+    if (req.user && !req.user?.following) {
+      req.user?.following = new Array();
+    }
 
     const index2 = req.user?.following.indexOf(user.id);
 

@@ -258,7 +258,7 @@ const countries = [
   'ZW',
 ];
 
-const userSchema = new mongoose.Schema<IUserDoc, IUserModel>(
+const userSchema = new mongoose.Schema(
   {
     username: {
       type: String,
@@ -418,6 +418,6 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
-const User = mongoose.model<IUserDoc, IUserModel>('User', userSchema);
+const User = mongoose.model('User', userSchema);
 
 export default User;

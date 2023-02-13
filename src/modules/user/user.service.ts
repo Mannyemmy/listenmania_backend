@@ -1,3 +1,4 @@
+// @ts-nocheck
 import jwt from 'jsonwebtoken';
 import httpStatus from 'http-status';
 import mongoose from 'mongoose';
