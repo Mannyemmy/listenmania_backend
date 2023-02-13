@@ -5,6 +5,7 @@ import { NextFunction, Request, Response } from 'express';
 import ApiError from '../../errors/ApiError';
 import catchAsync from '../../utils/catchAsync';
 import Artist from '../models/artist.model';
+import mongoose from 'mongoose';
 
 export const followArtist = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
   const artist = await Artist.findById(req.params['id']);
@@ -71,8 +72,24 @@ export const likeArtist = catchAsync(async (req: Request, res: Response, next: N
 });
 
 export const getRecentArtists = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const limit =  parseInt(req?.query['size']) || 10;
+  const limit = parseInt(req?.query['size']) || 10;
   const artists = await Artist.aggregate([{ $sample: { size: limit } }]);
+
+  if (artists) {
+    res.status(200).json(artists);
+  }
+});
+
+export const getLikedArtists = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const artists = await Artist.find({ likes: new mongoose.Types.ObjectId(req.user.id) });
+
+  if (artists) {
+    res.status(200).json(artists);
+  }
+});
+
+export const getFollowedArtists = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const artists = await Artist.find({ followers: new mongoose.Types.ObjectId(req.user.id) });
 
   if (artists) {
     res.status(200).json(artists);

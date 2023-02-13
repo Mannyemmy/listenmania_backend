@@ -30,6 +30,12 @@ export const postMessage = catchAsync(async (req: Request, res: Response) => {
   }
 });
 
+export const getChatLengths = catchAsync(async (req: Request, res: Response) => {
+  const rooms = await ChatRoom.getChatRoomsByUserId(req.user.id);
+
+  return res.status(200).json(rooms.length);
+})
+
 export const getContacts = catchAsync(async (req: Request, res: Response) => {
   try {
     const currentLoggedUser = req.user.id;
