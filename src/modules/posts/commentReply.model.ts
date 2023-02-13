@@ -4,13 +4,13 @@ import mongoose from 'mongoose';
 import { toJSON } from '../toJSON';
 import paginate from '../paginate/paginate';
 
-const commentSchema = new mongoose.Schema(
+const commentReplySchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
-    comment: {
+    body: {
       type: String,
       required: [true, 'Comment is required'],
     },
@@ -23,19 +23,11 @@ const commentSchema = new mongoose.Schema(
       ],
       default: [],
     },
-    post: {
+    comment: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Posts',
+      ref: 'Comment',
     },
-    replies: {
-      type: [
-        {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'CommentReply',
-        },
-      ],
-      default: [],
-    },
+   
   },
   {
     timestamps: true,
@@ -43,11 +35,10 @@ const commentSchema = new mongoose.Schema(
 );
 
 // add plugin that converts mongoose to json
-commentSchema.plugin(toJSON);
-commentSchema.plugin(paginate);
+commentReplySchema.plugin(toJSON);
+commentReplySchema.plugin(paginate);
 
 
+const CommentReply = mongoose.model('CommentReply', commentReplySchema);
 
-const Comment = mongoose.model('Comment', commentSchema);
-
-export default Comment;
+export default CommentReply;

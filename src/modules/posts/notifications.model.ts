@@ -1,40 +1,80 @@
 // @ts-nocheck
 import mongoose from 'mongoose';
+import toJSON from '../toJSON/toJSON';
+import mongoosePaginate from 'mongoose-paginate-v2';
 
-const NotificationSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+const notificationSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    to: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+      ],
+      default: [],
+    },
+    type: {
+      type: String,
+      enum: ['Follow', 'Like', 'Album', 'Single', 'Playlist', 'Comment', 'Promotion'],
+      default: 'Like',
+    },
+    message: String,
+    post: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Posts',
+      default: null,
+    },
+    playlist: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Playlist',
+      default: null,
+    },
+    comment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Comment',
+      default: null,
+    },
+    song: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Song',
+      default: null,
+    },
+    album: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Album',
+      default: null,
+    },
+    seen: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+      ],
+      default: [],
+    },
   },
-  to: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  type: {
-    type: String,
-    enum: ['Follow', 'Like'],
-    default: 'Like',
-  },
-  post: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Posts',
-  },
-  seen: {
-    type: Boolean,
-    default: false,
-  },
-});
+  {
+    timestamps: true,
+  }
+);
 
-NotificationSchema.pre(/^find/, function (next) {
-  this.find().populate('user post');
+notificationSchema.plugin(toJSON);
+notificationSchema.plugin(mongoosePaginate);
 
-  next();
-});
+// notificationSchema.pre(/^find/, function (next) {
+//   this.find().populate('user post');
 
-const Notification = mongoose.model('Notification', NotificationSchema);
+//   next();
+// });
+
+
+
+const Notification = mongoose.model('Notification', notificationSchema);
 
 export default Notification;

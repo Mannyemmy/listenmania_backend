@@ -10,20 +10,27 @@ import { addComment, checkPost, likeComment, deleteComment, getPostComments } fr
 //             deleteReply
 
 // } = require("../controllers/replyController")
+
+
 import { authController } from '../../modules/auth';
 
 const protect = authController.protect;
 
-router.route('/:id').get(getPostComments);
 
 //router.route("/:id").get(getComment)
 
-//comment
-router.route('/:id').post(protect, checkPost, addComment);
 
-router.route('/like/:id').patch(protect, likeComment);
+
+//comment
+router.route('/').post(protect, checkPost, addComment);
+
+router.route('/:id/like').put(protect, likeComment);
+
+router.route('/:id').get(getPostComments);
 
 router.route('/:id/:commentId').delete(protect, checkPost, deleteComment);
+
+
 
 //reply
 

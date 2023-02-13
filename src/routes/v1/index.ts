@@ -7,7 +7,9 @@ import userRoute from './user.route';
 import songRoute from "./song.route";
 import playlistRoute from './playlist.route';
 import chatRoute from "./chat.route"
+import replyRoute from './comment_reply.route';
 import config from '../../config/config';
+import artistRouter from "./artist.route"
 
 const router = express.Router();
 
@@ -26,12 +28,20 @@ const defaultIRoute: IRoute[] = [
     route: userRoute,
   },
   {
+    path: '/artists',
+    route: artistRouter,
+  },
+  {
     path: '/posts',
     route: postRoute,
   },
   {
     path: '/comment',
     route: commentRoute,
+  },
+  {
+    path: '/replies',
+    route: replyRoute,
   },
   {
     path: '/songs',
@@ -56,7 +66,7 @@ const devIRoute: IRoute[] = [
   },
 ];
 
-defaultIRoute.forEach((route) => {
+defaultIRoute.forEach((route) => {  
   router.use(route.path, route.route);
 });
 

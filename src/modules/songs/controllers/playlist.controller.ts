@@ -10,6 +10,7 @@ import Playlist from '../models/playlist.model';
 import Country from '../models/country.model';
 import LikedPlaylist from '../models/liked_playlist.model';
 import SubscribedPlaylist from '../models/subscribed_playlists.model';
+import Notification from '../../posts/notifications.model';
 
 const countries = [
   { name: 'Afghanistan', code: 'AF' },
@@ -415,6 +416,13 @@ export const likePlaylist = catchAsync(async (req: Request, res: Response, next:
       await userLikedPlaylist.save();
     }
 
+    await Notification.deleteMany({
+      to: playlist?.user,
+      user: req?.user?.id,
+      type: 'Playlist',
+      playlist: playlist.id,
+    });
+
     res.status(200).json({
       status: 'success',
       message: 'unliked',
@@ -436,6 +444,17 @@ export const likePlaylist = catchAsync(async (req: Request, res: Response, next:
     await playlist?.save((err) => {
       err && console.log(err);
     });
+    if (req.user.id !== playlist.user) {
+      await Notification.create({
+        user: req?.user?.id,
+        to: new Array(playlist?.user),
+        type: 'Playlist',
+        message: `${req.user?.username} liked your playlist`,
+        seen: new Array(req?.user?.id),
+        playlist: playlist.id,
+      });
+    }
+
     res.status(200).json({
       status: 'success',
       message: 'liked',
@@ -465,6 +484,13 @@ export const subscribePlaylist = catchAsync(async (req: Request, res: Response, 
       await userSubscribedPlaylist.save();
     }
 
+    await Notification.deleteMany({
+      to: playlist?.user,
+      user: req?.user?.id,
+      type: 'Playlist',
+      playlist: playlist.id,
+    });
+
     res.status(200).json({
       status: 'success',
       message: 'unsubscribed',
@@ -486,6 +512,16 @@ export const subscribePlaylist = catchAsync(async (req: Request, res: Response, 
     await playlist?.save((err) => {
       err && console.log(err);
     });
+    if (req.user.id !== playlist.user) {
+      await Notification.create({
+        user: req?.user?.id,
+        to: new Array(playlist?.user),
+        type: 'Playlist',
+        message: `${req.user?.username} subscribed to your playlist - ${playlist.name}`,
+        seen: new Array(req?.user?.id),
+        playlist: playlist.id,
+      });
+    }
     res.status(200).json({
       status: 'success',
       message: 'subscribed',

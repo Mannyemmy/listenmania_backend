@@ -1,7 +1,7 @@
 //@ts-nocheck
 import mongoose from 'mongoose';
 import toJSON from '../toJSON/toJSON';
-import mongoosePaginate from 'mongoose-paginate-v2'
+import mongoosePaginate from 'mongoose-paginate-v2';
 import paginate from '../paginate/paginate';
 
 const postSchema = new mongoose.Schema(
@@ -27,9 +27,23 @@ const postSchema = new mongoose.Schema(
     },
     post_type: String,
     post_files: Array,
-    comment: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Comment',
+    comments: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Comment',
+        },
+      ],
+      default: [],
+    },
+    reposts: {
+      type: [
+        {
+          user: String,
+          repostId: String,
+        },
+      ],
+      default: [],
     },
   },
   {
@@ -39,17 +53,10 @@ const postSchema = new mongoose.Schema(
   }
 );
 
-
-
-
 postSchema.plugin(toJSON);
 postSchema.plugin(mongoosePaginate);
 
-
-
-
 // add plugin that converts mongoose to json
-
 
 postSchema.pre('save', async function (next) {
   const post = this;
@@ -68,7 +75,6 @@ postSchema.pre('save', async function (next) {
 
 // postSchema.pre('find', async function (next) {
 
-
 //   await this.find().populate('postComments');
 
 //   next();
@@ -77,6 +83,3 @@ postSchema.pre('save', async function (next) {
 const Post = mongoose.model('Posts', postSchema);
 
 export default Post;
-
-
-

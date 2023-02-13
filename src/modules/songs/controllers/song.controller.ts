@@ -13,7 +13,8 @@ import slugify from '@sindresorhus/slugify';
 import LikedSong from '../models/liked_songs.model';
 import { array } from 'joi';
 import Playlist from '../models/playlist.model';
-import User  from '../../user/user.model';
+import User from '../../user/user.model';
+import Notification from '../../posts/notifications.model';
 
 const getPagination = (page, size) => {
   const limit = size ? +parseInt(size) : 10;
@@ -69,14 +70,14 @@ export const uploadSong = catchAsync(async (req: Request, res: Response) => {
 
   return res.status(201).json({
     status: 'success',
-    song,
+    song
   });
 });
 
 export const getUserSongs = catchAsync(async (req, res, next) => {
   const songs = await Song.find({ user: req.user.id });
 
-  res.status('201').json(songs);
+  res.status(201).json(songs);
 });
 
 export const getLikedSongs = catchAsync(async (req, res, next) => {
@@ -111,7 +112,7 @@ export const search = catchAsync(async (req, res, next) => {
       });
     } catch (error) {
       console.log(error);
-      res.status(404).json({'message' : 'No results found'})
+      res.status(404).json({ message: 'No results found' });
     }
   } else {
     res.status(200).json({
@@ -190,6 +191,13 @@ export const likeSong = catchAsync(async (req, res, next) => {
       await userLikes.save();
     }
 
+    await Notification.deleteMany({
+      to: song?.user,
+      user: req?.user?.id,
+      type: 'Single',
+      song: song.id,
+    });
+
     res.status(200).json({
       status: 'success',
       message: 'unliked',
@@ -211,6 +219,18 @@ export const likeSong = catchAsync(async (req, res, next) => {
     await song?.save((err) => {
       err && console.log(err);
     });
+
+    if (req.user.id.toString() != song.user.toString()) {
+      await Notification.create({
+        user: req?.user?.id,
+        to: new Array(song?.user),
+        type: 'Single',
+        message: `${req.user?.username} liked your song - ${song.name}`,
+        seen: new Array(req?.user?.id),
+        song: song.id,
+      });
+    }
+
     res.status(200).json({
       status: 'success',
       message: 'liked',

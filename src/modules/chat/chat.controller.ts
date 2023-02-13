@@ -9,6 +9,7 @@ export const initiateChat = catchAsync(async (req: Request, res: Response) => {
   const chatInitiator = req.user.id;
   const allUserIds = [...userIds, chatInitiator];
   const chatRoom = await ChatRoom.initiateChat(allUserIds, chatInitiator);
+  await ChatMessage.createPostInChatRoom(chatRoom.chatRoomId, '', chatInitiator);
   return res.status(200).json({ success: true, chatRoom });
 });
 
@@ -21,11 +22,10 @@ export const postMessage = catchAsync(async (req: Request, res: Response) => {
     const currentLoggedUser = req.user.id;
     const post = await ChatMessage.createPostInChatRoom(roomId, messagePayload, currentLoggedUser);
 
-
     global.io.to(roomId).emit('new message', { message: post });
     return res.status(200).json({ success: true, post });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.status(500).json({ success: false, error: error });
   }
 });
@@ -57,7 +57,7 @@ export const getContacts = catchAsync(async (req: Request, res: Response) => {
 export const getChatRoomById = catchAsync(async (req: Request, res: Response) => {
   try {
     const { roomId } = req.params;
-    const room = await ChatRoom.findOne({'_id' : roomId}).populate({
+    const room = await ChatRoom.findOne({ _id: roomId }).populate({
       path: 'userIds',
       select: 'id _id username profile_pic firstname lastname location',
     });
@@ -69,10 +69,10 @@ export const getChatRoomById = catchAsync(async (req: Request, res: Response) =>
     }
 
     const otherUser = room.userIds.find((e) => e._id != req.user.id);
-  
-    return res.status(200).json({room, otherUser});
+
+    return res.status(200).json({ room, otherUser });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.status(500).json({ success: false, error: error });
   }
 });

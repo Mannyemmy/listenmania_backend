@@ -10,8 +10,8 @@ const albumSchema = new mongoose.Schema(
       trim: true,
     },
     genre: {
-      type: String,
-      trim: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Genre',
     },
     coverArt: { type: String, default: 'https://res.cloudinary.com/dln68reqa/image/upload/v1646384075/sample.jpg' },
     coverArtId: { type: String, default: '' },

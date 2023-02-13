@@ -12,6 +12,7 @@ import * as userService from './user.service';
 import User from './user.model';
 import Song from '../songs/models/song.model';
 import Playlist from '../songs/models/playlist.model';
+import Notification from '../posts/notifications.model';
 
 export const createUser = catchAsync(async (req: Request, res: Response) => {
   const user = await userService.createUser(req.body);
@@ -63,28 +64,30 @@ export const getUserProfile = catchAsync(async (req: Request, res: Response) => 
 });
 
 export const getOtherUserProfile = catchAsync(async (req: Request, res: Response) => {
-  
-  const user = await User.findOne({'username' : req.params['username']});
+  const user = await User.findOne({ username: req.params['username'] });
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
   const posts = await getUserPost(user.id);
-  const songs = await Song.find({ user: user.id },'fileUrl coverArt artist name user featured likes id trackLength duration').sort({ createdAt: -1 });
-  const playlists = await Playlist.find({ user: user.id },'id coverArt name user').sort({ createdAt: -1 });
+  const songs = await Song.find(
+    { user: user.id },
+    'fileUrl coverArt artist name user featured likes id trackLength duration'
+  ).sort({ createdAt: -1 });
+  const playlists = await Playlist.find({ user: user.id }, 'id coverArt name user').sort({ createdAt: -1 });
   res.status(200).json({ user, songs, playlists, posts });
 });
 
 export const getDiscoverUsers = catchAsync(async (req: Request, res: Response) => {
   const fol_obj = req.user.following;
 
-  const following = Array.from(fol_obj, ([key, value]) => new mongoose.Types.ObjectId(value.user));
+  // const following = Array.from(fol_obj, ([key, value]) => new mongoose.Types.ObjectId(value.user));
 
-  following.push(new mongoose.Types.ObjectId(req.user.id));
+  fol_obj.push(new mongoose.Types.ObjectId(req.user.id));
 
   const users = await User.aggregate([
     {
       $match: {
-        _id: { $nin: following },
+        _id: { $nin: fol_obj },
       },
     },
     { $sample: { size: 10 } },
@@ -138,10 +141,8 @@ export const deleteUser = catchAsync(async (req: Request, res: Response) => {
 export const followUser = catchAsync(async (req: Request, res: Response) => {
   if (typeof req.params['id'] === 'string') {
     const user = await userService.getUserById(req.params['id']);
-
     if (req.user?.id === req?.params['id'].toString()) throw new ApiError(httpStatus.NOT_FOUND, "You can't follow yourself");
-
-    if (await user?.followers.get(req.user.id)) {
+    if (user?.followers.includes(req.user.id)) {
       return res.status(200).json({
         status: 'success',
         message: 'You already follow this user',
@@ -149,16 +150,20 @@ export const followUser = catchAsync(async (req: Request, res: Response) => {
       });
     }
 
-    await user?.followers.set(req.user.id.toString(), {
-      user: req?.user.id,
-    });
+    await user?.followers.push(req.user.id);
 
     await user?.save();
 
-    await req.user?.following.set(user?.id.toString(), {
-      user: user?.id,
-    });
+    await req.user?.following.push(user?.id);
     await req.user?.save();
+
+    await Notification.create({
+      user: req?.user.id,
+      to: new Array(user?.id),
+      type: 'Follow',
+      message: `${req.user?.username} followed you`,
+      seen: new Array(req.user?.id),
+    });
 
     res.status(200).json({
       status: 'success',
@@ -166,7 +171,7 @@ export const followUser = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  return null;
+  return res.status(400);
 });
 
 export const unFollowUser = catchAsync(async (req: Request, res: Response) => {
@@ -176,19 +181,28 @@ export const unFollowUser = catchAsync(async (req: Request, res: Response) => {
 
     const user = await userService.getUserById(req.params['id']);
 
-    if (!(await user?.followers.get(req?.user.id.toString()))) {
+    if (!user?.followers.includes(req?.user.id)) {
       return res.status(200).json({
         status: 'success',
         message: "You don't follow this user",
         user,
       });
     }
-
-    await user?.followers.delete(req.user.id);
+    const index = user?.followers?.indexOf(req.user.id);
+    user?.followers?.splice(index, 1);
+    // await user?.followers.delete(req.user.id);
     await user?.save();
 
-    await req.user?.following.delete(user?.id);
+    const index2 = req.user?.following.indexOf(user.id);
+
+    req.user?.following.splice(index2, 1);
     await req.user?.save();
+
+    await Notification.deleteMany({
+      to: user?.id,
+      user: req?.user?.id,
+      type: 'Follow',
+    });
 
     return res.status(200).json({
       status: 'success',

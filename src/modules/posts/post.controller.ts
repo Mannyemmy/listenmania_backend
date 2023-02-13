@@ -15,9 +15,9 @@ const deleteImageCloudinary = async (id) => {
   await post_files.map((img) => cloudinary.uploader.destroy(img.cloudinary_id));
 };
 
-const getPagination = (page, size) => {
-  const limit = size ? +size : 10;
-  const offset = page ? page * limit : 0;
+const getPagination = async (page = 1, size = 10) => {
+  const limit = size;
+  const offset = parseInt(page) * limit;
 
   return { limit, offset };
 };
@@ -55,14 +55,34 @@ export const createPost = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+export const getUserNotifications = catchAsync(async (req: Request, res: Response) => {
+  const { page, size, title } = req.query;
+
+  const { limit, offset } = await getPagination(page, size);
+
+  const options = {
+    page: page || 1,
+    limit: size || 5,
+    populate: 'user',
+    sort: { createdAt: -1 },
+  };
+
+  await Notification.paginate({ to: mongoose.Types.ObjectId(req?.user?.id.toString()) }, options, function (err, result) {
+    res.send({
+      totalItems: result.totalDocs,
+      notifications: result.docs,
+      totalPages: result.totalPages,
+      currentPage: result.page - 1,
+    });
+  });
+});
+
 export const getAllPost = catchAsync(async (req, res, next) => {
   const { page, size, title } = req.query;
 
-  const { limit, offset } = getPagination(page, size);
-
   const options = {
-    page: 1,
-    limit: 10,
+    page: page || 1,
+    limit: size || 20,
     collation: {
       locale: 'en',
     },
@@ -70,12 +90,18 @@ export const getAllPost = catchAsync(async (req, res, next) => {
     sort: { posted_at: -1 },
   };
 
-  Post.paginate({}, options, function (err, result) {
+  const fol_obj = req.user.following;
+
+  // const following = Array.from(fol_obj, ([key, value]) => new mongoose.Types.ObjectId(value.user));
+
+  fol_obj.push(new mongoose.Types.ObjectId(req.user.id));
+
+  Post.paginate({ user: { $in: fol_obj } }, options, function (err, result) {
     res.send({
       totalItems: result.totalDocs,
       posts: result.docs,
       totalPages: result.totalPages,
-      currentPage: result.page - 1,
+      currentPage: result.page,
     });
   });
 });
@@ -85,6 +111,14 @@ export const getUserPost = async (id: string) => {
 
   return posts;
 };
+
+export const getUserPostComment = catchAsync(async (req, res) => {
+  const posts = await Post.find({
+    $or: [{ user: req.user.id }, { comments: mongoose.Types.ObjectId(req?.user?.id.toString()) }],
+  }).sort({ posted_at: -1 }).populate('user');
+
+  res.status(201).json(posts);
+});
 
 export const getPostById = catchAsync(async (req, res, next) => {
   const post = await Post.findById(req.params.id).populate('user');
@@ -97,6 +131,51 @@ export const getPostById = catchAsync(async (req, res, next) => {
     status: 'success',
     post,
   });
+});
+
+export const repost = catchAsync(async (req, res, next) => {
+  const post = await Post.findById(req.params.id);
+
+  if (!post) {
+    return next(new ApiError(400, 'Post not found'));
+  }
+
+  if (post.user == req.user.id) {
+    return next(new ApiError(400, "Can't re-upload your posts"));
+  }
+
+  const reposted = post.reposts.findIndex((e) => e.user == req.user.id.toString());
+
+  if (reposted >= 0) {
+    const newPost = await Post.findById(post.reposts[reposted].repostId);
+
+    await newPost.remove();
+
+    post.reposts.splice(reposted, 1);
+    await post.save((err) => {
+      err && console.log(err);
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Re-up removed',
+    });
+  } else {
+    const newPost = await Post.create({
+      caption: post.caption,
+      post_files: post.post_files,
+      user: req.user.id,
+      posted_at: new Date(),
+    });
+
+    post.reposts.push({ user: req.user.id, repostId: newPost.id });
+    await post.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Post re-upped to followers',
+    });
+  }
 });
 
 export const deletePost = catchAsync(async (req, res, next) => {
@@ -139,10 +218,22 @@ export const likePost = catchAsync(async (req, res, next) => {
       to: post.user.id,
       user: id,
       type: 'Like',
+      post: post.id,
     });
   } else {
     post.likes.push(id);
     await post.save();
+
+    if (id !== post.user.id) {
+      await Notification.create({
+        user: id,
+        to: new Array(post.user.id),
+        type: 'Like',
+        message: `${req.user?.username} liked your post`,
+        seen: new Array(id),
+        post: post.id,
+      });
+    }
   }
 
   res.status(200).json({
