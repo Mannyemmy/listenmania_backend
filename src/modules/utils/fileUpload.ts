@@ -7,8 +7,6 @@ cloudinary.v2.config({
 });
 
 export const fileUpload = async (file: Express.Multer.File) => {
-
-
   if (file.mimetype.slice(0, 5) === 'video') {
     return await cloudinary.v2.uploader.upload(file.path, {
       resource_type: 'video',
@@ -17,11 +15,15 @@ export const fileUpload = async (file: Express.Multer.File) => {
     });
   }
   if (file.mimetype.slice(0, 5) === 'audio') {
-    const fName = file.originalname.split(".")[0];
+    const fName = file.originalname.split('.')[0];
     return await cloudinary.v2.uploader.upload(file.path, {
-      resource_type: "video",
+      resource_type: 'video',
       public_id: `AudioUploads/${fName}`,
     });
   }
   return await cloudinary.v2.uploader.upload(file.path);
+};
+
+export const fileDelete = async (fileId: string) => {
+  cloudinary.v2.uploader.destroy(fileId);
 };

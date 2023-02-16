@@ -44,8 +44,8 @@ const users = [];
 const addUser = ({ id, name, room }) => {
   console.log(name, room);
 
-  name = name.trim().toLowerCase();
-  room = room.trim().toLowerCase();
+  name = name?.trim().toLowerCase();
+  room = room?.trim().toLowerCase();
 
   const existingUser = users.find((user) => user.room === room && user.name === name);
 
@@ -155,6 +155,7 @@ mongoose.connect(config.mongoose.url).then(() => {
   app.use(errorHandler);
 
   server = http.createServer(app);
+
   const io = new Server(server, {
     pingTimeout: 60000,
     cors: {
@@ -166,7 +167,9 @@ mongoose.connect(config.mongoose.url).then(() => {
   global.io = io;
 
   global.io.on('connection', (socket) => {
+    console.log('check 1', socket.connected);
     socket.on('join', ({ userId, room }, callback) => {
+      console.log('check 2', socket.connected);
       const { error, user } = addUser({ id: socket.id, name: userId, room }); // add user with socket id and room info
 
       if (error) return callback(error);
@@ -190,6 +193,7 @@ mongoose.connect(config.mongoose.url).then(() => {
     });
 
     socket.on('disconnect', () => {
+      console.log('disconnect')
       const user = removeUser(socket.id);
       if (user) {
         // socket.leave(user.room)

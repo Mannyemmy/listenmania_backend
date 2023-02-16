@@ -1,8 +1,41 @@
 // @ts-nocheck
+import { fileDelete, fileUpload } from './../utils/fileUpload';
 import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync';
 import ChatRoom from './chat.model';
 import ChatMessage from './chatmessage.model';
+
+export const deleteMedia = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id;
+
+  await fileDelete(id);
+
+  res.status(200).json({ status: 'success' });
+});
+
+export const uploadMedia = catchAsync(async (req: Request, res: Response) => {
+  const media = req?.file;
+
+  let fileUrl;
+  let fileId;
+
+  if (media) {
+    try {
+      const audioPath = await fileUpload(media);
+
+      fileId = audioPath.public_id;
+      fileUrl = audioPath.secure_url;
+
+      return res.status(201).json({
+        status: 'success',
+        fileUrl: fileUrl,
+        fileId: fileId,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
+});
 
 export const initiateChat = catchAsync(async (req: Request, res: Response) => {
   const { userIds } = req.body;
@@ -19,8 +52,11 @@ export const postMessage = catchAsync(async (req: Request, res: Response) => {
     const messagePayload = {
       messageText: req.body.messageText,
     };
+    const fileData = req.body.fileData;
+
+   console.log(fileData)
     const currentLoggedUser = req.user.id;
-    const post = await ChatMessage.createPostInChatRoom(roomId, messagePayload, currentLoggedUser);
+    const post = await ChatMessage.createPostInChatRoom(roomId, messagePayload, fileData, currentLoggedUser);
 
     global.io.to(roomId).emit('new message', { message: post });
     return res.status(200).json({ success: true, post });
@@ -34,7 +70,7 @@ export const getChatLengths = catchAsync(async (req: Request, res: Response) => 
   const rooms = await ChatRoom.getChatRoomsByUserId(req.user.id);
 
   return res.status(200).json(rooms.length);
-})
+});
 
 export const getContacts = catchAsync(async (req: Request, res: Response) => {
   try {

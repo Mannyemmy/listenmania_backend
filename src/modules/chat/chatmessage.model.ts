@@ -6,6 +6,8 @@ const MESSAGE_TYPES = {
   TYPE_TEXT: 'text',
   TYPE_IMAGE: 'image',
   TYPE_VIDEO: 'video',
+  TYPE_AUDIO: 'audio',
+  TYPE_SONG: 'song',
 };
 
 const readByRecipientSchema = new mongoose.Schema(
@@ -33,6 +35,8 @@ const chatMessageSchema = new mongoose.Schema(
       ref: 'ChatRoom',
     },
     message: mongoose.Schema.Types.Mixed,
+    post_file: { type: String, required: false, default: "" },
+    post_file_id: { type: String, required: false , default: ""},
     type: {
       type: String,
       default: () => MESSAGE_TYPES.TYPE_TEXT,
@@ -41,7 +45,15 @@ const chatMessageSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
-    readByRecipients: Array,
+    readByRecipients: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -49,13 +61,17 @@ const chatMessageSchema = new mongoose.Schema(
   }
 );
 
-chatMessageSchema.statics['createPostInChatRoom'] = async function (chatRoomId, message, postedByUser) {
+chatMessageSchema.statics['createPostInChatRoom'] = async function (chatRoomId, message,fileData, postedByUser) {
+  console.log(fileData, 'menu');
   try {
     const post = await this.create({
       chatRoomId,
       message,
       postedByUser,
       readByRecipients: [postedByUser],
+      post_file : fileData.post_file,
+      post_file_id : fileData.post_file_id,
+      type: fileData.type
     });
     const aggregate = await this.aggregate([
       // get post where _id = post._id
@@ -120,7 +136,6 @@ chatMessageSchema.statics['getRecentConversation'] = async function (chatRoomIds
   try {
     return this.aggregate([
       { $match: { chatRoomId: { $in: chatRoomIds } } },
-     
 
       {
         $project: {
@@ -131,11 +146,8 @@ chatMessageSchema.statics['getRecentConversation'] = async function (chatRoomIds
           postedByUser: 1,
           readByRecipients: 1,
           type: 1,
-         
         },
       },
-      
-    
 
       {
         $group: {
@@ -146,7 +158,7 @@ chatMessageSchema.statics['getRecentConversation'] = async function (chatRoomIds
           type: { $last: '$type' },
           postedByUser: { $last: '$postedByUser' },
           createdAt: { $last: '$createdAt' },
-        
+
           readByRecipients: { $addToSet: '$readByRecipients' },
         },
       },
@@ -161,7 +173,6 @@ chatMessageSchema.statics['getRecentConversation'] = async function (chatRoomIds
       },
       { $unwind: '$roomInfo' },
 
-      
       { $unwind: '$roomInfo.userIds' },
       {
         $lookup: {
@@ -174,13 +185,13 @@ chatMessageSchema.statics['getRecentConversation'] = async function (chatRoomIds
       },
       { $unwind: '$roomInfo.userProfile' },
       { $unwind: '$readByRecipients' },
-      
+
       {
         $group: {
           _id: '$roomInfo._id',
           messageId: { $last: '$messageId' },
           chatRoomId: { $last: '$chatRoomId' },
-      
+
           message: { $last: '$message' },
           type: { $last: '$type' },
           postedByUser: { $last: '$postedByUser' },
@@ -188,9 +199,8 @@ chatMessageSchema.statics['getRecentConversation'] = async function (chatRoomIds
           roomInfo: { $addToSet: '$roomInfo.userProfile' },
           createdAt: { $last: '$createdAt' },
         },
-        
       },
-      { $sort: { 'createdAt': -1 } },
+      { $sort: { createdAt: -1 } },
       // apply pagination
       { $skip: options.page * options.limit },
       { $limit: options.limit },
