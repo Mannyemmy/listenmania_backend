@@ -220,7 +220,7 @@ export const likeSong = catchAsync(async (req, res, next) => {
       err && console.log(err);
     });
 
-    if (req.user.id.toString() != song.user.toString()) {
+    if (req.user.id.toString() != song?.user?.toString()) {
       await Notification.create({
         user: req?.user?.id,
         to: new Array(song?.user),

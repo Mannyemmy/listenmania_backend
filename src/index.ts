@@ -104,55 +104,56 @@ mongoose.connect(config.mongoose.url).then(() => {
       saveUninitialized: true,
     }
   );
+
   app.use(admin.options.rootPath, adminRouter);
 
-  // parse json request body
-  app.use(express.json());
+  // // parse json request body
+  // app.use(express.json());
 
-  // parse urlencoded request body
-  app.use(express.urlencoded({ extended: true }));
+  // // parse urlencoded request body
+  // app.use(express.urlencoded({ extended: true }));
 
-  // sanitize request data
-  app.use(xss());
-  app.use(ExpressMongoSanitize());
+  // // sanitize request data
+  // app.use(xss());
+  // app.use(ExpressMongoSanitize());
 
-  // jwt authentication
-  app.use(passport.initialize());
-  passport.use('jwt', jwtStrategy);
+  // // jwt authentication
+  // app.use(passport.initialize());
+  // passport.use('jwt', jwtStrategy);
 
-  if (config.env !== 'test') {
-    app.use(morgan.successHandler);
-    app.use(morgan.errorHandler);
-  }
+  // if (config.env !== 'test') {
+  //   app.use(morgan.successHandler);
+  //   app.use(morgan.errorHandler);
+  // }
 
-  // set security HTTP headers
-  app.use(helmet());
+  // // set security HTTP headers
+  // app.use(helmet());
 
-  // enable cors
-  app.use(cors());
-  app.options('*', cors());
+  // // enable cors
+  // app.use(cors());
+  // app.options('*', cors());
 
-  // gzip compression
-  app.use(compression());
+  // // gzip compression
+  // app.use(compression());
 
-  // limit repeated failed requests to auth endpoints
-  if (config.env === 'production') {
-    app.use('/v1/auth', authLimiter);
-  }
+  // // limit repeated failed requests to auth endpoints
+  // if (config.env === 'production') {
+  //   app.use('/v1/auth', authLimiter);
+  // }
 
-  // v1 api routes
-  app.use('/v1', routes);
+  // // v1 api routes
+  // app.use('/v1', routes);
 
-  // send back a 404 error for any unknown api request
-  app.use((_req, _res, next) => {
-    next(new ApiError(httpStatus.NOT_FOUND, 'Not found'));
-  });
+  // // send back a 404 error for any unknown api request
+  // // app.use((_req, _res, next) => {
+  // //   next(new ApiError(httpStatus.NOT_FOUND, 'Not found'));
+  // // });
 
-  // convert error to ApiError, if needed
-  app.use(errorConverter);
+  // // convert error to ApiError, if needed
+  // app.use(errorConverter);
 
-  // handle error
-  app.use(errorHandler);
+  // // handle error
+  // app.use(errorHandler);
 
   server = http.createServer(app);
 
@@ -167,9 +168,7 @@ mongoose.connect(config.mongoose.url).then(() => {
   global.io = io;
 
   global.io.on('connection', (socket) => {
-    console.log('check 1', socket.connected);
     socket.on('join', ({ userId, room }, callback) => {
-      console.log('check 2', socket.connected);
       const { error, user } = addUser({ id: socket.id, name: userId, room }); // add user with socket id and room info
 
       if (error) return callback(error);
@@ -193,7 +192,7 @@ mongoose.connect(config.mongoose.url).then(() => {
     });
 
     socket.on('disconnect', () => {
-      console.log('disconnect')
+      console.log('disconnect');
       const user = removeUser(socket.id);
       if (user) {
         // socket.leave(user.room)

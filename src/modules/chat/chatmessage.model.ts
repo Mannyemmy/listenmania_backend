@@ -62,7 +62,7 @@ const chatMessageSchema = new mongoose.Schema(
 );
 
 chatMessageSchema.statics['createPostInChatRoom'] = async function (chatRoomId, message,fileData, postedByUser) {
-  console.log(fileData, 'menu');
+  
   try {
     const post = await this.create({
       chatRoomId,
@@ -116,6 +116,8 @@ chatMessageSchema.statics['createPostInChatRoom'] = async function (chatRoomId, 
           _id: '$_id',
           postId: { $last: '$_id' },
           chatRoomId: { $last: '$chatRoomInfo._id' },
+          post_file: {$last : 'post_file'},
+          post_file_id: {$last : 'post_file_id'},
           message: { $last: '$message' },
           type: { $last: '$type' },
           postedByUser: { $last: '$postedByUser' },
@@ -131,6 +133,87 @@ chatMessageSchema.statics['createPostInChatRoom'] = async function (chatRoomId, 
     throw error;
   }
 };
+
+
+chatMessageSchema.statics['getNewMessages'] = async function (chatRoomIds, currentUserOnlineId){
+  try {
+    return this.aggregate([
+      { $match: { chatRoomId: { $in: chatRoomIds }, readByRecipients: { $ne: currentUserOnlineId } } },
+
+      {
+        $project: {
+          _id: 1,
+          chatRoomId: 1,
+          message: 1,
+          createdAt: 1,
+          postedByUser: 1,
+          readByRecipients: 1,
+          type: 1,
+        },
+      },
+
+      {
+        $group: {
+          _id: '$chatRoomId',
+          messageId: { $last: '$_id' },
+          chatRoomId: { $last: '$chatRoomId' },
+          message: { $last: '$message' },
+          type: { $last: '$type' },
+          postedByUser: { $last: '$postedByUser' },
+          createdAt: { $last: '$createdAt' },
+
+          readByRecipients: { $addToSet: '$readByRecipients' },
+        },
+      },
+
+      {
+        $lookup: {
+          from: 'chatrooms',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'roomInfo',
+        },
+      },
+      { $unwind: '$roomInfo' },
+
+      { $unwind: '$roomInfo.userIds' },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'roomInfo.userIds',
+          foreignField: '_id',
+          pipeline: [{ $project: { _id: 1, username: 1, firstname: 1, lastname: 1, profile_pic: 1 } }],
+          as: 'roomInfo.userProfile',
+        },
+      },
+      { $unwind: '$roomInfo.userProfile' },
+      { $unwind: '$readByRecipients' },
+
+      {
+        $group: {
+          _id: '$roomInfo._id',
+          messageId: { $last: '$messageId' },
+          chatRoomId: { $last: '$chatRoomId' },
+
+          message: { $last: '$message' },
+          type: { $last: '$type' },
+          postedByUser: { $last: '$postedByUser' },
+          readByRecipients: { $addToSet: '$readByRecipients' },
+          roomInfo: { $addToSet: '$roomInfo.userProfile' },
+          createdAt: { $last: '$createdAt' },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      // apply pagination
+      { $skip: options.page * options.limit },
+      { $limit: options.limit },
+    ]);
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
 
 chatMessageSchema.statics['getRecentConversation'] = async function (chatRoomIds, options, currentUserOnlineId) {
   try {
@@ -321,15 +404,16 @@ chatMessageSchema.statics['getConversationByRoomId'] = async function (chatRoomI
 };
 
 chatMessageSchema.statics['markMessageRead'] = async function (chatRoomId, currentUserOnlineId) {
+  console.log('got here')
   try {
     return this.updateMany(
       {
         chatRoomId,
-        'readByRecipients.readByUserId': { $ne: currentUserOnlineId },
+        'readByRecipients': { $ne: currentUserOnlineId },
       },
       {
         $addToSet: {
-          readByRecipients: { readByUserId: currentUserOnlineId },
+          readByRecipients: currentUserOnlineId ,
         },
       },
       {

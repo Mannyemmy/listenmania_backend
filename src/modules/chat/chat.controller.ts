@@ -4,6 +4,7 @@ import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync';
 import ChatRoom from './chat.model';
 import ChatMessage from './chatmessage.model';
+import mongoose from 'mongoose';
 
 export const deleteMedia = catchAsync(async (req: Request, res: Response) => {
   const id = req.params.id;
@@ -41,8 +42,14 @@ export const initiateChat = catchAsync(async (req: Request, res: Response) => {
   const { userIds } = req.body;
   const chatInitiator = req.user.id;
   const allUserIds = [...userIds, chatInitiator];
+
+  const fileData = {
+    post_file: '',
+    post_file_id: '',
+    type: 'text',
+  };
   const chatRoom = await ChatRoom.initiateChat(allUserIds, chatInitiator);
-  await ChatMessage.createPostInChatRoom(chatRoom.chatRoomId, '', chatInitiator);
+  await ChatMessage.createPostInChatRoom(chatRoom.chatRoomId, '', fileData, chatInitiator);
   return res.status(200).json({ success: true, chatRoom });
 });
 
@@ -54,7 +61,6 @@ export const postMessage = catchAsync(async (req: Request, res: Response) => {
     };
     const fileData = req.body.fileData;
 
-   console.log(fileData)
     const currentLoggedUser = req.user.id;
     const post = await ChatMessage.createPostInChatRoom(roomId, messagePayload, fileData, currentLoggedUser);
 
@@ -69,7 +75,41 @@ export const postMessage = catchAsync(async (req: Request, res: Response) => {
 export const getChatLengths = catchAsync(async (req: Request, res: Response) => {
   const rooms = await ChatRoom.getChatRoomsByUserId(req.user.id);
 
-  return res.status(200).json(rooms.length);
+  const chatRoomIds = rooms.map((room) => room._id);
+
+  // const results = await ChatMessage.find( { readByRecipients: { $ne: req.user.id }  , chatRoomId: { $in: chatRoomIds } }).lean()
+
+  // results = [...results].group(({ chatRoomId }) => chatRoomId)
+  const currentLoggedUser = req.user.id;
+  const results = await ChatMessage.aggregate(
+    [
+      {
+        $match: {
+          readByRecipients: { $ne: new mongoose.Types.ObjectId(currentLoggedUser)},
+          chatRoomId: { $in: chatRoomIds },
+        },
+      },
+
+      {
+        $group: {
+          _id: '$chatRoomId',
+          myCount: { $sum: 1 },
+          message: { $count: {} },
+        },
+      },
+      {
+        $count: "chats",
+      },
+
+      { $unwind: '$chats' }
+    ],
+    function (err, results) {
+      if (err) throw err;
+      return results;
+    }
+  );
+
+  return res.status(200).json(results[0]);
 });
 
 export const getContacts = catchAsync(async (req: Request, res: Response) => {
@@ -135,6 +175,14 @@ export const getMessagesByChatId = catchAsync(async (req: Request, res: Response
       limit: parseInt(req.query.limit) || 30,
     };
 
+    const result = await ChatMessage.updateMany(
+      {
+        chatRoomId: roomId,
+        readByRecipients: { $ne: req.user.id },
+      },
+      { $push: { readByRecipients: req.user.id } }
+    );
+
     const conversation = await ChatMessage.find({ chatRoomId: roomId }).sort({ createdAt: 1 }).limit(50).populate({
       path: 'postedByUser',
       select: 'id _id username profile_pic firstname lastname location',
@@ -145,22 +193,22 @@ export const getMessagesByChatId = catchAsync(async (req: Request, res: Response
   }
 });
 
-// markConversationReadByRoomId: async (req, res) => {
-//     try {
-//       const { roomId } = req.params;
-//       const room = await ChatRoomModel.getChatRoomByRoomId(roomId)
-//       if (!room) {
-//         return res.status(400).json({
-//           success: false,
-//           message: 'No room exists for this id',
-//         })
-//       }
+export const markConversationReadByRoomId = catchAsync(async (req: Request, res: Response) => {
+  try {
+    const { roomId } = req.params;
+    const room = await ChatRoomModel.getChatRoomByRoomId(roomId);
+    if (!room) {
+      return res.status(400).json({
+        success: false,
+        message: 'No room exists for this id',
+      });
+    }
 
-//       const currentLoggedUser = req.userId;
-//       const result = await ChatMessageModel.markMessageRead(roomId, currentLoggedUser);
-//       return res.status(200).json({ success: true, data: result });
-//     } catch (error) {
-//       console.log(error);
-//       return res.status(500).json({ success: false, error });
-//     }
-//   },
+    const currentLoggedUser = req.userId;
+    const result = await ChatMessageModel.markMessageRead(roomId, currentLoggedUser);
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, error });
+  }
+});
