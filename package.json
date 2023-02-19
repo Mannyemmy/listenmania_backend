@@ -102,5 +102,8 @@
     "winston": "^3.3.3",
     "xss-clean": "^0.1.1"
   },
-  "config": {}
+  "config": {},
+  "peerDependencies": {
+    "openapi-types": "^12.1.0"
+  }
 }
