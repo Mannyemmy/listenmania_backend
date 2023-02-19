@@ -98,7 +98,7 @@ const admin = new AdminJS({
   rootPath: "/admin",
 });
 
-console.log(admin.ACTIONS)
+
 
 const adminRouter = AdminJSExpress.buildAuthenticatedRouter(
   admin,
